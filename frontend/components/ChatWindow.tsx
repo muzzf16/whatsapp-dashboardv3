@@ -123,10 +123,22 @@ export default function ChatWindow({ chatId, activeSession }: ChatWindowProps) {
     const messageContent = newMessage;
     setNewMessage('');
 
+    // Optimistic update
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      from: activeSession,
+      content: messageContent,
+      timestamp: new Date(),
+      fromMe: true,
+      type: 'chat'
+    };
+    addMessage(optimisticMessage);
+
     try {
       await messageAPI.sendMessage(activeSession, chatId, messageContent);
     } catch (error) {
       console.error('Error sending message:', error);
+      // Optional: remove optimistic message on failure or show error state
       setNewMessage(messageContent);
       alert('Failed to send message: ' + (error as Error).message);
     }
@@ -136,7 +148,27 @@ export default function ChatWindow({ chatId, activeSession }: ChatWindowProps) {
     if (e.target.files && e.target.files[0] && chatId && activeSession) {
       const file = e.target.files[0];
       const mediaType = file.type.split('/')[0];
-      await messageAPI.sendMessageWithMedia(activeSession, chatId, '', file, mediaType);
+      
+      // Optimistic update for media
+      const localUrl = URL.createObjectURL(file);
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        from: activeSession,
+        content: '', // Caption can be added later
+        timestamp: new Date(),
+        fromMe: true,
+        type: mediaType, // 'image', 'video', etc.
+        mediaUrl: localUrl
+      };
+      addMessage(optimisticMessage);
+
+      try {
+        await messageAPI.sendMessageWithMedia(activeSession, chatId, '', file, mediaType);
+      } catch (error) {
+        console.error('Error sending media:', error);
+        // Optional: remove optimistic message on failure
+        alert('Failed to send media: ' + (error as Error).message);
+      }
     }
   };
 
@@ -213,7 +245,7 @@ export default function ChatWindow({ chatId, activeSession }: ChatWindowProps) {
                     }`}
                   >
                     {message.type === 'image' && message.mediaUrl && (
-                      <img src={`http://localhost:5000/${message.mediaUrl}`} alt="media" className="rounded-lg mb-2" />
+                      <img src={message.mediaUrl.startsWith('blob:') ? message.mediaUrl : `http://localhost:5000/${message.mediaUrl}`} alt="media" className="rounded-lg mb-2" />
                     )}
                     <p>{message.content}</p>
                     <div className={`text-xs mt-1 text-right ${message.fromMe ? 'text-blue-200' : 'text-gray-500'}`}>

@@ -18,7 +18,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     
     // Send the message using WhatsApp service
     const response = await whatsappService.sendMessage(sessionId, jid, {
-      conversation: message,
+      text: message,
       ...options
     });
     
